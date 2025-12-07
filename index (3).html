@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Évolution des déchets DEEE en France (2009-2021)</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        
+        #viz-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        path {
+            stroke: #fff;
+            stroke-width: 0.5px;
+        }
+        
+        path:hover {
+            stroke: #333;
+            stroke-width: 2px;
+            cursor: pointer;
+        }
+        
+        #controls {
+            text-align: center;
+            margin: 20px 0;
+        }
+        
+        #slider {
+            width: 80%;
+            max-width: 600px;
+        }
+        
+        #year {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-top: 10px;
+        }
+        
+        .tooltip {
+            position: absolute;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border-radius: 4px;
+            pointer-events: none;
+            font-size: 14px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        #legend {
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .legend-item {
+            display: inline-block;
+            margin: 0 10px;
+        }
+        
+        .legend-color {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            vertical-align: middle;
+            margin-right: 5px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Évolution des déchets DEEE en France</h1>
+    <p style="text-align: center; color: #666;">Déchets d'Équipements Électriques et Électroniques par département</p>
+    
+    <div id="viz-container">
+        <svg id="map"></svg>
+        
+        <div id="controls">
+            <input id="slider" type="range" value="0" min="0" max="6" step="1" /><br/>
+            <span id="year">2009</span>
+        </div>
+        
+        <div id="legend"></div>
+    </div>
+    
+    <div class="tooltip"></div>
+
+    <script>
+        // Configuration
+        const width = 960;
+        const height = 600;
+        const years = [2009, 2011, 2013, 2015, 2017, 2019, 2021];
+        
+        // Création du SVG
+        const svg = d3.select("#map")
+            .attr("width", width)
+            .attr("height", height);
+        
+        // Projection
+        const projection = d3.geoConicConformal()
+            .center([2.454071, 46.279229])
+            .scale(2800);
+        
+        const path = d3.geoPath().projection(projection);
+        
+        // Échelle de couleurs
+        const color = d3.scaleSequential()
+            .interpolator(d3.interpolateYlOrRd);
+        
+        // Tooltip
+        const tooltip = d3.select(".tooltip");
+        
+        // Variables globales
+        let json;
+        let allData;
+        
+        // Chargement des données
+        // MODIFIÉ : GeoJSON chargé depuis l'URL au lieu d'un fichier local
+        Promise.all([
+            d3.json("https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements-version-simplifiee.geojson"),
+            d3.csv("mesDonnes.csv")
+        ]).then(function([geoData, csvData]) {
+            json = geoData;
+            
+            // Filtrer les données pour ne garder que les DEEE
+            const cleanData = csvData.filter(row => row.L_TYP_REG_DECHET === "DEEE");
+            
+            // Fusionner les données avec le GeoJSON
+            for (let j = 0; j < json.features.length; j++) {
+                const departement = json.features[j];
+                const codeDep = departement.properties.code;
+                
+                // Récupérer toutes les années pour ce département
+                const depData = cleanData.filter(row => row.DEP === codeDep);
+                
+                // Créer un objet avec les valeurs par année
+                const valuesByYear = {};
+                depData.forEach(row => {
+                    const year = row.ANNEE;
+                    const tonnage = parseFloat(row.TONNAGE_T) || 0;
+                    valuesByYear[year] = tonnage;
+                });
+                
+                json.features[j].properties.valuesByYear = valuesByYear;
+            }
+            
+            // Calculer le domaine pour l'échelle de couleurs
+            const allValues = cleanData.map(d => parseFloat(d.TONNAGE_T) || 0);
+            const minValue = d3.min(allValues);
+            const maxValue = d3.max(allValues);
+            
+            color.domain([minValue, maxValue]);
+            
+            // Créer la légende
+            createLegend(minValue, maxValue);
+            
+            // Dessiner la carte pour la première année
+            drawMap("2009");
+            
+            // Ajouter le listener sur le slider
+            d3.select("#slider").on("input", function() {
+                const yearIndex = +this.value;
+                const selectedYear = String(years[yearIndex]);
+                drawMap(selectedYear);
+            });
+        }).catch(function(error) {
+            console.error("Erreur lors du chargement des données:", error);
+            alert("Erreur: Assurez-vous que le fichier 'mesDonnes.csv' est présent dans le même dossier.");
+        });
+        
+        // Fonction pour dessiner la carte
+        function drawMap(currentYear) {
+            // Mettre à jour l'affichage de l'année
+            d3.select('#year').html(currentYear);
+            
+            // Sélectionner et dessiner les départements
+            const carte = svg.selectAll("path")
+                .data(json.features);
+            
+            carte.join("path")
+                .attr("d", path)
+                .transition()
+                .duration(500)
+                .style("fill", function(d) {
+                    const value = d.properties.valuesByYear[currentYear];
+                    if (value === undefined || value === 0) {
+                        return "#ccc";
+                    }
+                    return color(value);
+                });
+            
+            // Ajouter les événements de tooltip
+            svg.selectAll("path")
+                .on("mouseover", function(event, d) {
+                    const value = d.properties.valuesByYear[currentYear];
+                    const departementName = d.properties.nom;
+                    
+                    tooltip.transition()
+                        .duration(200)
+                        .style("opacity", 0.9);
+                    
+                    tooltip.html(
+                        `<strong>${departementName}</strong><br/>` +
+                        `${value !== undefined ? value.toLocaleString('fr-FR') + ' tonnes' : 'Pas de données'}`
+                    )
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+                })
+                .on("mouseout", function() {
+                    tooltip.transition()
+                        .duration(500)
+                        .style("opacity", 0);
+                });
+        }
+        
+        // Fonction pour créer la légende
+        function createLegend(minValue, maxValue) {
+            const legendContainer = d3.select("#legend");
+            const steps = 5;
+            const stepSize = (maxValue - minValue) / (steps - 1);
+            
+            legendContainer.html("<strong>Légende (tonnes) :</strong><br/>");
+            
+            for (let i = 0; i < steps; i++) {
+                const value = minValue + (i * stepSize);
+                const legendItem = legendContainer.append("div")
+                    .attr("class", "legend-item");
+                
+                legendItem.append("span")
+                    .attr("class", "legend-color")
+                    .style("background-color", color(value));
+                
+                legendItem.append("span")
+                    .text(Math.round(value).toLocaleString('fr-FR'));
+            }
+        }
+    </script>
+</body>
+</html>
