@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Évolution des déchets DEEE en France (2009-2021)</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>Évolution des déchets DEEE en France</h1>
+        <p class="subtitle">Déchets d'Équipements Électriques et Électroniques par département</p>
+
+        <div id="map-container">
+            <svg id="map"></svg>
+        </div>
+
+        <div class="controls">
+            <label for="slider">Année sélectionnée : <strong><span id="year-display">2009</span></strong></label>
+            <input id="slider" type="range" value="0" min="0" max="6" step="1" />
+            <div class="year-labels">
+                <span>2009</span>
+                <span>2011</span>
+                <span>2013</span>
+                <span>2015</span>
+                <span>2017</span>
+                <span>2019</span>
+                <span>2021</span>
+            </div>
+        </div>
+
+        <div id="tooltip" class="tooltip"></div>
+
+        <div class="legend">
+            <div class="legend-title">Tonnage de déchets (tonnes)</div>
+            <div class="legend-scale" id="legend-scale"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
