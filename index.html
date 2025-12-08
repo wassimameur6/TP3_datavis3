@@ -108,19 +108,19 @@
         const height = 600;
         const years = [2009, 2011, 2013, 2015, 2017, 2019, 2021];
         
-        // Création du SVG
+
         const svg = d3.select("#map")
             .attr("width", width)
             .attr("height", height);
         
-        // Projection
+
         const projection = d3.geoConicConformal()
             .center([2.454071, 46.279229])
             .scale(2800);
         
         const path = d3.geoPath().projection(projection);
         
-        // Échelle de couleurs
+
         const color = d3.scaleSequential()
             .interpolator(d3.interpolateYlOrRd);
         
@@ -131,23 +131,22 @@
         let json;
         let allData;
         
-        // Chargement des données
-        // MODIFIÉ : GeoJSON chargé depuis l'URL au lieu d'un fichier local
+
         Promise.all([
             d3.json("https://raw.githubusercontent.com/gregoiredavid/france-geojson/master/departements-version-simplifiee.geojson"),
             d3.csv("mesDonnes.csv")
         ]).then(function([geoData, csvData]) {
             json = geoData;
             
-            // Filtrer les données pour ne garder que les DEEE
+
             const cleanData = csvData.filter(row => row.L_TYP_REG_DECHET === "DEEE");
             
-            // Fusionner les données avec le GeoJSON
+
             for (let j = 0; j < json.features.length; j++) {
                 const departement = json.features[j];
                 const codeDep = departement.properties.code;
                 
-                // Récupérer toutes les années pour ce département
+
                 const depData = cleanData.filter(row => row.DEP === codeDep);
                 
                 // Créer un objet avec les valeurs par année
@@ -168,13 +167,13 @@
             
             color.domain([minValue, maxValue]);
             
-            // Créer la légende
+
             createLegend(minValue, maxValue);
             
-            // Dessiner la carte pour la première année
+
             drawMap("2009");
             
-            // Ajouter le listener sur le slider
+
             d3.select("#slider").on("input", function() {
                 const yearIndex = +this.value;
                 const selectedYear = String(years[yearIndex]);
@@ -185,12 +184,12 @@
             alert("Erreur: Assurez-vous que le fichier 'mesDonnes.csv' est présent dans le même dossier.");
         });
         
-        // Fonction pour dessiner la carte
+
         function drawMap(currentYear) {
             // Mettre à jour l'affichage de l'année
             d3.select('#year').html(currentYear);
             
-            // Sélectionner et dessiner les départements
+
             const carte = svg.selectAll("path")
                 .data(json.features);
             
@@ -206,7 +205,7 @@
                     return color(value);
                 });
             
-            // Ajouter les événements de tooltip
+
             svg.selectAll("path")
                 .on("mouseover", function(event, d) {
                     const value = d.properties.valuesByYear[currentYear];
@@ -230,7 +229,7 @@
                 });
         }
         
-        // Fonction pour créer la légende
+
         function createLegend(minValue, maxValue) {
             const legendContainer = d3.select("#legend");
             const steps = 5;
